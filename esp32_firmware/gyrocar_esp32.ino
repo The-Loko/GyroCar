@@ -37,7 +37,6 @@ void handleBluetoothData();
 void checkForObstacles();
 void checkTimeout();
 void handleObstacleAvoidance();
-void processJoystickData(String jsonData);
 void controlMotors(float x, float y);
 void setMotors(int leftSpeed, int rightSpeed, bool leftForward, bool rightForward);
 
@@ -133,11 +132,11 @@ void setup() {
   SerialBT.begin("GyroCar");
   // Register Bluetooth connect/disconnect callbacks
   SerialBT.register_callback([](esp_spp_cb_event_t event, esp_spp_cb_param_t *param) {
-    if (event == ESP_SPP_SRV_OPEN) {
+    if (event == ESP_SPP_SRV_OPEN_EVT) {
       btConnected = true;
       digitalWrite(LED_BT, HIGH);
       Serial.println("Bluetooth Connected");
-    } else if (event == ESP_SPP_CLOSE) {
+    } else if (event == ESP_SPP_CLOSE_EVT) {
       btConnected = false;
       digitalWrite(LED_BT, LOW);
       Serial.println("Bluetooth Disconnected");
@@ -250,36 +249,6 @@ void handleBluetoothData() {
       }
     }
   }
-}
-
-// Process joystick data and control motors
-void processJoystickData(String jsonData) {
-  // Print raw data for debugging
-  Serial.print("Received data: ");
-  Serial.println(jsonData);
-
-  // Manual parsing: expect {"x":<num>,"y":<num>,"z":<num>}
-  char buf[64];
-  jsonData.toCharArray(buf, sizeof(buf));
-  float x=0, y=0, z=0;
-  if (sscanf(buf, "{\"x\":%f,\"y\":%f,\"z\":%f}", &x, &y, &z) != 3) {
-    Serial.println("JSON parse error");
-    return;
-  }
-
-  // Debug output
-  Serial.print("X: "); Serial.print(x);
-  Serial.print(", Y: "); Serial.print(y);
-  Serial.print(", Z: "); Serial.println(z);
-
-  // Don't control motors if obstacle avoidance is active
-  if (!avoidanceManeuverActive) {
-    // Map joystick values to motor speeds
-    controlMotors(x, y);
-  }
-  
-  // Blink status LED
-  digitalWrite(LED_STATUS, !digitalRead(LED_STATUS));
 }
 
 // Control motors based on joystick data
