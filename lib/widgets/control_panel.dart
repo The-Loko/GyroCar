@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/car_control_provider.dart';
 import '../utils/constants.dart';
 import '../services/connection_service.dart';
-import 'joystick_widget.dart';
+import 'directional_control_widget.dart';
 import 'sensor_display_widget.dart';
 
 class ControlPanel extends StatelessWidget {
@@ -67,14 +67,14 @@ class ControlPanel extends StatelessWidget {
             // Joystick Control
             if (provider.isControlActive) ...[
               Text(
-                'Joystick Control',
+                'Directional Control',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: AppColors.secondaryColor,
                 ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
-              const Center(child: JoystickWidget()),
+              const Center(child: DirectionalControlWidget()),
               const SizedBox(height: 24),
             ],
             
