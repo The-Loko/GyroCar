@@ -131,6 +131,19 @@ void setup() {
   
   // Start Bluetooth with the name "GyroCar"
   SerialBT.begin("GyroCar");
+  // Register Bluetooth connect/disconnect callbacks
+  SerialBT.register_callback([](esp_spp_cb_event_t event, esp_spp_cb_param_t *param) {
+    if (event == ESP_SPP_SRV_OPEN) {
+      btConnected = true;
+      digitalWrite(LED_BT, HIGH);
+      Serial.println("Bluetooth Connected");
+    } else if (event == ESP_SPP_CLOSE) {
+      btConnected = false;
+      digitalWrite(LED_BT, LOW);
+      Serial.println("Bluetooth Disconnected");
+      stopMotors();
+    }
+  });
   
   // Initialize BMP280 sensor on ESP32 I2C (SDA=21, SCL=22)
   Wire.begin(21, 22);
@@ -271,6 +284,14 @@ void processJoystickData(String jsonData) {
 
 // Control motors based on joystick data
 void controlMotors(float x, float y) {
+  // Spin in place for pure left/right commands
+  if (abs(y) < 0.1 && abs(x) > 0.1) {
+    int spinSpeed = constrain((int)(abs(x) * 255), 0, 255);
+    bool leftFwd = x > 0;
+    bool rightFwd = !leftFwd;
+    setMotors(spinSpeed, spinSpeed, leftFwd, rightFwd);
+    return;
+  }
   // Y controls forward/backward
   // X controls left/right turning
   
