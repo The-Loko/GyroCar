@@ -189,8 +189,8 @@ class ConnectionService {
       devices.sort((a, b) {
         if (a.name == 'GyroCar') return -1;
         if (b.name == 'GyroCar') return 1;
-        if (a.name?.contains('ESP32') == true) return -1;
-        if (b.name?.contains('ESP32') == true) return 1;
+        if (a.name != null && a.name!.contains('ESP32')) return -1;
+        if (b.name != null && b.name!.contains('ESP32')) return 1;
         return (a.name ?? '').compareTo(b.name ?? '');
       });
       
