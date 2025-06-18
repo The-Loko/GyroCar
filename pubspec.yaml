@@ -10,7 +10,6 @@ dependencies:
     sdk: flutter
   flutter_joystick: ^0.2.2  # For joystick control
   flutter_bluetooth_serial: ^0.4.0  # For Bluetooth connectivity
-  wifi_scan: ^0.4.0+1  # Replacing wifi_iot with recommended package
   shared_preferences: ^2.2.2  # For saving settings
   provider: ^6.1.1  # For state management
   cupertino_icons: ^1.0.6
