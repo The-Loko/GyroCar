@@ -1,23 +1,13 @@
 /*
   GyroCar ESP32 Firmware
+
+  Connect ESP32-CAM's TXD2 (GPIO 1) to ESP32-DEV's RXD1 (GPIO 16)
+  Connect ESP32-CAM's GND to ESP32-DEV's GND
   
   This firmware allows an ESP32 to receive joystick data from a mobile app
   via either WiFi or Bluetooth, and control DC motors accordingly.
   
-  Features:
-  - Dual connectivity mode (WiFi or Bluetooth)
-  - JSON parsing for joystick data
-  - DC motor control with L298N driver
-  - Obstacle avoidance with HC-SR04 ultrasonic sensor
-  - Status LED indicators
-  
-  Hardware:
-  - ESP32 board
-  - L298N motor driver
-  - HC-SR04 ultrasonic sensor
-  - DC motors (2)
-  - Optional status LEDs
-  - 9V or 12V battery for motors
+  Modified to receive motor control data from ESP32-CAM for face tracking
 */
 
 #include <BluetoothSerial.h> // For Bluetooth connectivity
@@ -30,15 +20,9 @@
   #error Bluetooth is not enabled! Please run `make menuconfig` to enable it
 #endif
 
-// Add forward declarations for functions used before they’re defined
-void stopMotors();
-void blinkLED(int pin, int times, int delayMs);
-void handleBluetoothData();
-void checkForObstacles();
-void checkTimeout();
-void handleObstacleAvoidance();
-void controlMotors(float x, float y);
-void setMotors(int leftSpeed, int rightSpeed, bool leftForward, bool rightForward);
+// Define UART pins for communication with ESP32-CAM
+#define RXD1 16  // ESP32 GPIO pin for receiving data from ESP32-CAM
+#define TXD1 17  // ESP32 GPIO pin for sending data to ESP32-CAM (if needed)
 
 // Motor control pins for L298N
 #define MOTOR_A_IN1 15  // Input 1 for motor A direction
@@ -54,7 +38,7 @@ void setMotors(int leftSpeed, int rightSpeed, bool leftForward, bool rightForwar
 
 // Status LEDs
 #define LED_STATUS 2    // Built-in LED for status
-#define LED_WIFI   27   // LED for WiFi connection status
+#define LED_WIFI   2   // LED for WiFi connection status
 #define LED_BT     14   // LED for Bluetooth connection status
 
 // PWM properties
@@ -99,10 +83,17 @@ Adafruit_BMP280 bmp;                  // BMP280 sensor object
 unsigned long lastSensorSendTime = 0;
 const unsigned long SENSOR_INTERVAL = 1000; // send sensor data every 1 second
 
+// Flag to indicate face tracking mode
+bool faceTrackingMode = false;
+
 void setup() {
   // Initialize Serial port for debugging
   Serial.begin(115200);
   Serial.println("GyroCar ESP32 Firmware Starting...");
+  
+  // Initialize UART communication with ESP32-CAM
+  Serial1.begin(115200, SERIAL_8N1, RXD1, TXD1);
+  Serial.println("UART connection to ESP32-CAM initialized");
   
   // Initialize status LEDs
   pinMode(LED_STATUS, OUTPUT);
@@ -158,8 +149,20 @@ void setup() {
 }
 
 void loop() {
-  // Handle incoming Bluetooth data and commands
-  if (SerialBT.available()) {
+  // Check for motor control data from ESP32-CAM
+  if (Serial1.available()) {
+    String data = Serial1.readStringUntil('\n');
+    data.trim();
+    
+    if (data.startsWith("M:")) {
+      // This is motor control data from ESP32-CAM
+      parseMotorControlData(data);
+      lastActivityTime = millis(); // Reset activity timeout
+    }
+  }
+
+  // Handle incoming Bluetooth data and commands (lower priority)
+  if (SerialBT.available() && !faceTrackingMode) {
     handleBluetoothData();
   }
 
@@ -197,6 +200,39 @@ void loop() {
 
   // Check for connection timeout to stop motors
   checkTimeout();
+}
+
+// Parse motor control data from ESP32-CAM
+void parseMotorControlData(String data) {
+  // Format: "M:x,y,auto_mode"
+  data = data.substring(2); // Remove "M:"
+  
+  int firstComma = data.indexOf(',');
+  int lastComma = data.lastIndexOf(',');
+  
+  if (firstComma > 0 && lastComma > firstComma) {
+    float x = data.substring(0, firstComma).toFloat();
+    float y = data.substring(firstComma + 1, lastComma).toFloat();
+    int auto_mode = data.substring(lastComma + 1).toInt();
+    
+    // Set face tracking mode based on auto_mode flag
+    faceTrackingMode = (auto_mode == 1);
+    
+    // Debug output
+    Serial.printf("Received from ESP32-CAM: x=%.2f, y=%.2f, mode=%d\n", 
+                  x, y, auto_mode);
+    
+    // Control motors based on received values
+    if (faceTrackingMode) {
+      // Use the values to control the motors
+      controlMotors(x, y);
+      digitalWrite(LED_WIFI, HIGH); // Use WiFi LED to indicate face tracking mode
+    } else {
+      // Stop motors when not in face tracking mode
+      stopMotors();
+      digitalWrite(LED_WIFI, LOW);
+    }
+  }
 }
 
 // Handle gyroscope data received via Bluetooth
@@ -261,34 +297,39 @@ void controlMotors(float x, float y) {
     setMotors(spinSpeed, spinSpeed, leftFwd, rightFwd);
     return;
   }
+  
   // Y controls forward/backward
   // X controls left/right turning
   
-  // Determine direction and speed
-  int speedValue = abs(y) * 255;  // Convert to 0-255 range
-  speedValue = constrain(speedValue, 0, 255);
-  
-  int turnValue = abs(x) * 100;  // Turning effect (0-100)
-  turnValue = constrain(turnValue, 0, 100);
+  // Convert joystick values to full motor speed (0-255)
+  int baseSpeed = abs(y) * 255;  // Use full range for base speed
+  baseSpeed = constrain(baseSpeed, 0, 255);
   
   // Forward/Backward direction
   bool goingForward = (y < 0);
   
   // If obstacle detected, prevent forward motion
   if (obstacleDetected && goingForward) {
-    speedValue = 0;
+    baseSpeed = 0;
   }
   
-  // Calculate motor speeds with turning effect
+  // Calculate left and right motor speeds based on turning input
+  int leftMotorSpeed, rightMotorSpeed;
+  
   if (x < 0) { // Turning left
-    leftMotorSpeed = speedValue * (1 - turnValue/100.0);
-    rightMotorSpeed = speedValue;
+    // Reduce left motor speed proportionally to turning input
+    float turnFactor = abs(x);
+    leftMotorSpeed = baseSpeed * (1 - turnFactor);
+    rightMotorSpeed = baseSpeed; // Keep right motor at full speed
   } else if (x > 0) { // Turning right
-    leftMotorSpeed = speedValue;
-    rightMotorSpeed = speedValue * (1 - turnValue/100.0);
+    // Reduce right motor speed proportionally to turning input
+    float turnFactor = abs(x);
+    leftMotorSpeed = baseSpeed; // Keep left motor at full speed
+    rightMotorSpeed = baseSpeed * (1 - turnFactor);
   } else { // Going straight
-    leftMotorSpeed = speedValue;
-    rightMotorSpeed = speedValue;
+    // Both motors at full requested speed
+    leftMotorSpeed = baseSpeed;
+    rightMotorSpeed = baseSpeed;
   }
   
   // Set the direction for both motors
