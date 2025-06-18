@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/car_control_provider.dart';
+import '../services/connection_service.dart';
 
 class SensorDisplayWidget extends StatelessWidget {
   const SensorDisplayWidget({super.key});
@@ -10,21 +11,25 @@ class SensorDisplayWidget extends StatelessWidget {
     return Consumer<CarControlProvider>(
       builder: (context, provider, child) {
         final sensorData = provider.lastSensorData;
+        final isConnected = provider.connectionStatus == ConnectionStatus.connected;
         
         return Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             _buildParameter(
-              value: sensorData?.distance?.toString() ?? '125',
+              value: sensorData?.distance.toStringAsFixed(1) ?? '--',
               label: 'cm',
+              isConnected: isConnected,
             ),
             _buildParameter(
-              value: sensorData?.temperature?.toString() ?? '24',
+              value: sensorData?.temperature.toStringAsFixed(1) ?? '--',
               label: '°C',
+              isConnected: isConnected,
             ),
             _buildParameter(
-              value: sensorData?.pressure?.toString() ?? '1013',
+              value: sensorData?.pressure.toStringAsFixed(0) ?? '--',
               label: 'hPa',
+              isConnected: isConnected,
             ),
           ],
         );
@@ -32,16 +37,20 @@ class SensorDisplayWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildParameter({required String value, required String label}) {
+  Widget _buildParameter({
+    required String value, 
+    required String label, 
+    required bool isConnected
+  }) {
     return Column(
       children: [
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.w700,
-            color: Colors.white,
-            fontFeatures: [FontFeature.tabularFigures()],
+            color: isConnected ? Colors.white : const Color(0xFF8E8E93),
+            fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
         const SizedBox(height: 4),

@@ -4,7 +4,6 @@ import '../providers/car_control_provider.dart';
 import '../widgets/sensor_display_widget.dart';
 import '../widgets/directional_control_widget.dart';
 import '../services/connection_service.dart';
-import '../utils/constants.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
