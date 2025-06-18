@@ -141,16 +141,41 @@ class _ConnectionDialog extends StatefulWidget {
 }
 
 class _ConnectionDialogState extends State<_ConnectionDialog> {
-  final TextEditingController _ipController = TextEditingController();
-  final TextEditingController _portController = TextEditingController(text: '80');
   bool _isConnecting = false;
+  bool _isScanning = false;
+  List<dynamic> _availableDevices = [];
+  String? _selectedDeviceAddress;
+
+  @override
+  void initState() {
+    super.initState();
+    _scanForBluetoothDevices();
+  }
+
+  Future<void> _scanForBluetoothDevices() async {
+    setState(() {
+      _isScanning = true;
+    });
+
+    try {
+      final devices = await widget.provider.scanBluetoothDevices();
+      setState(() {
+        _availableDevices = devices;
+        _isScanning = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isScanning = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: const Color(0xFF1C1C1E),
       title: const Text(
-        'Connection Settings',
+        'Bluetooth Connection',
         style: TextStyle(color: Colors.white),
       ),
       content: Column(
@@ -158,7 +183,8 @@ class _ConnectionDialogState extends State<_ConnectionDialog> {
         children: [
           // Connection status
           Container(
-            padding: const EdgeInsets.all(12),            decoration: BoxDecoration(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
               color: widget.provider.connectionStatus == ConnectionStatus.connected
                   ? const Color(0xFF34C759).withValues(alpha: 0.1)
                   : const Color(0xFFFF3B30).withValues(alpha: 0.1),
@@ -168,8 +194,8 @@ class _ConnectionDialogState extends State<_ConnectionDialog> {
               children: [
                 Icon(
                   widget.provider.connectionStatus == ConnectionStatus.connected
-                      ? Icons.wifi
-                      : Icons.wifi_off,
+                      ? Icons.bluetooth_connected
+                      : Icons.bluetooth_disabled,
                   color: widget.provider.connectionStatus == ConnectionStatus.connected
                       ? const Color(0xFF34C759)
                       : const Color(0xFFFF3B30),
@@ -177,7 +203,7 @@ class _ConnectionDialogState extends State<_ConnectionDialog> {
                 const SizedBox(width: 8),
                 Text(
                   widget.provider.connectionStatus == ConnectionStatus.connected
-                      ? 'Connected'
+                      ? 'Connected to ${widget.provider.targetAddress}'
                       : 'Disconnected',
                   style: TextStyle(
                     color: widget.provider.connectionStatus == ConnectionStatus.connected
@@ -192,41 +218,84 @@ class _ConnectionDialogState extends State<_ConnectionDialog> {
           
           const SizedBox(height: 16),
           
-          // IP Address field
-          TextField(
-            controller: _ipController,
-            style: const TextStyle(color: Colors.white),
-            decoration: const InputDecoration(
-              labelText: 'ESP32 IP Address',
-              labelStyle: TextStyle(color: Color(0xFF8E8E93)),
-              hintText: '192.168.1.100',
-              hintStyle: TextStyle(color: Color(0xFF8E8E93)),
-              enabledBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: Color(0xFF38383A)),
+          // Scan button and device list
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Available Devices:',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
               ),
-              focusedBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: Color(0xFF007AFF)),
+              TextButton.icon(
+                onPressed: _isScanning ? null : _scanForBluetoothDevices,
+                icon: _isScanning
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF007AFF)),
+                        ),
+                      )
+                    : const Icon(Icons.refresh, color: Color(0xFF007AFF)),
+                label: Text(
+                  _isScanning ? 'Scanning...' : 'Scan',
+                  style: const TextStyle(color: Color(0xFF007AFF)),
+                ),
               ),
-            ),
+            ],
           ),
           
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           
-          // Port field
-          TextField(
-            controller: _portController,
-            style: const TextStyle(color: Colors.white),
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Port',
-              labelStyle: TextStyle(color: Color(0xFF8E8E93)),
-              enabledBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: Color(0xFF38383A)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: Color(0xFF007AFF)),
-              ),
+          // Device list
+          Container(
+            height: 150,
+            width: double.maxFinite,
+            decoration: BoxDecoration(
+              border: Border.all(color: const Color(0xFF38383A)),
+              borderRadius: BorderRadius.circular(8),
             ),
+            child: _availableDevices.isEmpty
+                ? const Center(
+                    child: Text(
+                      'No paired devices found.\nMake sure "GyroCar" is paired.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Color(0xFF8E8E93)),
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _availableDevices.length,
+                    itemBuilder: (context, index) {
+                      final device = _availableDevices[index];
+                      final deviceName = device.name ?? 'Unknown Device';
+                      final deviceAddress = device.address ?? '';
+                      final isSelected = _selectedDeviceAddress == deviceAddress;
+                      
+                      return ListTile(
+                        dense: true,
+                        title: Text(
+                          deviceName,
+                          style: const TextStyle(color: Colors.white, fontSize: 14),
+                        ),
+                        subtitle: Text(
+                          deviceAddress,
+                          style: const TextStyle(color: Color(0xFF8E8E93), fontSize: 12),
+                        ),
+                        trailing: isSelected
+                            ? const Icon(Icons.check, color: Color(0xFF34C759))
+                            : null,
+                        tileColor: isSelected
+                            ? const Color(0xFF007AFF).withValues(alpha: 0.2)
+                            : null,
+                        onTap: () {
+                          setState(() {
+                            _selectedDeviceAddress = deviceAddress;
+                          });
+                        },
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -249,9 +318,8 @@ class _ConnectionDialogState extends State<_ConnectionDialog> {
             'Cancel',
             style: TextStyle(color: Color(0xFF8E8E93)),
           ),
-        ),
-        TextButton(
-          onPressed: _isConnecting ? null : _connect,
+        ),        TextButton(
+          onPressed: _isConnecting || _selectedDeviceAddress == null ? null : _connect,
           child: _isConnecting
               ? const SizedBox(
                   width: 16,
@@ -271,23 +339,22 @@ class _ConnectionDialogState extends State<_ConnectionDialog> {
   }
 
   Future<void> _connect() async {
-    if (_ipController.text.isEmpty) return;
+    if (_selectedDeviceAddress == null) return;
 
     setState(() {
       _isConnecting = true;
     });
 
     try {
-      final success = await widget.provider.connectWifi(
-        _ipController.text,
-        int.tryParse(_portController.text) ?? 80,
-      );      if (mounted) {
+      final success = await widget.provider.connectBluetooth(_selectedDeviceAddress!);
+
+      if (mounted) {
         if (success) {
           Navigator.of(context).pop();
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Failed to connect'),
+              content: Text('Failed to connect to Bluetooth device'),
               backgroundColor: Color(0xFFFF3B30),
             ),
           );
@@ -304,8 +371,6 @@ class _ConnectionDialogState extends State<_ConnectionDialog> {
 
   @override
   void dispose() {
-    _ipController.dispose();
-    _portController.dispose();
     super.dispose();
   }
 }
