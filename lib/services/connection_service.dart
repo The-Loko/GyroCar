@@ -186,14 +186,13 @@ class ConnectionService {
       final devices = bondedDevices
           .map((device) => BluetoothDevice.fromFlutterBluetoothSerial(device))
           .toList();
-      
-      // Prioritize devices named "GyroCar" or containing "ESP32"
+        // Prioritize devices named "GyroCar" or containing "ESP32"
       devices.sort((a, b) {
         if (a.name == 'GyroCar') return -1;
         if (b.name == 'GyroCar') return 1;
-        if (a.name?.contains('ESP32') == true) return -1;
-        if (b.name?.contains('ESP32') == true) return 1;
-        return a.name?.compareTo(b.name ?? '') ?? 0;
+        if (a.name != null && a.name!.contains('ESP32')) return -1;
+        if (b.name != null && b.name!.contains('ESP32')) return 1;
+        return (a.name ?? '').compareTo(b.name ?? '');
       });
       
       return devices;

@@ -5,7 +5,6 @@ import '../services/connection_service.dart';
 import '../models/control_data.dart';
 import '../models/sensor_data.dart';
 import '../models/bluetooth_device.dart';
-import '../models/wifi_network.dart';
 
 class CarControlProvider with ChangeNotifier {
   final JoystickService _joystickService = JoystickService();
@@ -50,15 +49,8 @@ class CarControlProvider with ChangeNotifier {
     _joystickService.setSensitivity(value);
     notifyListeners();
   }
-
   void updateJoystickPosition(double x, double y) {
     _joystickService.updateJoystickPosition(x, y);
-  }
-  Future<bool> connectWifi(String ipAddress, int port) async {
-    _connectionService.setDataCallback(handleSensorData);
-    final result = await _connectionService.connectWifi(ipAddress, port);
-    notifyListeners();
-    return result;
   }
 
   Future<bool> connectBluetooth(String address) async {
@@ -75,10 +67,6 @@ class CarControlProvider with ChangeNotifier {
 
   Future<List<BluetoothDevice>> scanBluetoothDevices() {
     return _connectionService.scanBluetoothDevices();
-  }
-
-  Future<List<WiFiNetwork>> scanWifiNetworks() {
-    return _connectionService.scanWifiNetworks();
   }
 
   // Handle sensor data received from ESP32
