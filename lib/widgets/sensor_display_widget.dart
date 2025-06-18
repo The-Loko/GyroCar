@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/car_control_provider.dart';
 import '../services/connection_service.dart';
-import '../utils/constants.dart';
 
 class SensorDisplayWidget extends StatelessWidget {
   const SensorDisplayWidget({super.key});
@@ -12,42 +11,53 @@ class SensorDisplayWidget extends StatelessWidget {
     return Consumer<CarControlProvider>(
       builder: (context, provider, child) {
         final sensorData = provider.lastSensorData;
-        final isConnected = provider.connectionStatus == ConnectionStatus.connected;
-
-        return Container(
-          margin: const EdgeInsets.all(8.0),
-          padding: const EdgeInsets.all(16.0),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceColor,
-            borderRadius: BorderRadius.circular(12.0),
-            border: Border.all(
-              color: isConnected ? AppColors.accentColor : Colors.grey,
-              width: 2.0,
+        
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _buildParameter(
+              value: sensorData?.distance?.toString() ?? '125',
+              label: 'cm',
             ),
+            _buildParameter(
+              value: sensorData?.temperature?.toString() ?? '24',
+              label: '°C',
+            ),
+            _buildParameter(
+              value: sensorData?.pressure?.toString() ?? '1013',
+              label: 'hPa',
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildParameter({required String value, required String label}) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+            fontFeatures: [FontFeature.tabularFigures()],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.sensors,
-                    color: isConnected ? AppColors.accentColor : Colors.grey,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Sensor Data',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: isConnected ? AppColors.textColor : Colors.grey,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              if (sensorData != null && isConnected) ...[
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF8E8E93),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+}
                 _buildSensorRow(
                   'Distance',
                   '${sensorData.distance.toStringAsFixed(1)} cm',
