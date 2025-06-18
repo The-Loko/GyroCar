@@ -123,7 +123,3 @@ class _DirectionalControlWidgetState extends State<DirectionalControlWidget> {
     );
   }
 }
-      ],
-    );
-  }
-}

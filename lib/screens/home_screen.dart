@@ -159,11 +159,10 @@ class _ConnectionDialogState extends State<_ConnectionDialog> {
         children: [
           // Connection status
           Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
+            padding: const EdgeInsets.all(12),            decoration: BoxDecoration(
               color: widget.provider.connectionStatus == ConnectionStatus.connected
-                  ? const Color(0xFF34C759).withOpacity(0.1)
-                  : const Color(0xFFFF3B30).withOpacity(0.1),
+                  ? const Color(0xFF34C759).withValues(alpha: 0.1)
+                  : const Color(0xFFFF3B30).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -233,12 +232,13 @@ class _ConnectionDialogState extends State<_ConnectionDialog> {
         ],
       ),
       actions: [
-        if (widget.provider.connectionStatus == ConnectionStatus.connected)
-          TextButton(
-            onPressed: () async {
-              await widget.provider.disconnect();
-              if (mounted) Navigator.of(context).pop();
-            },
+        if (widget.provider.connectionStatus == ConnectionStatus.connected)        TextButton(
+          onPressed: () async {
+            await widget.provider.disconnect();
+            if (context.mounted) {
+              Navigator.of(context).pop();
+            }
+          },
             child: const Text(
               'Disconnect',
               style: TextStyle(color: Color(0xFFFF3B30)),
@@ -282,9 +282,7 @@ class _ConnectionDialogState extends State<_ConnectionDialog> {
       final success = await widget.provider.connectWifi(
         _ipController.text,
         int.tryParse(_portController.text) ?? 80,
-      );
-
-      if (mounted) {
+      );      if (mounted) {
         if (success) {
           Navigator.of(context).pop();
         } else {
