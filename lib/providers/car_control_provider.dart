@@ -10,12 +10,12 @@ import '../models/wifi_network.dart';
 class CarControlProvider with ChangeNotifier {
   final JoystickService _joystickService = JoystickService();
   final ConnectionService _connectionService = ConnectionService();
-
   bool get isControlActive => _joystickService.isActive;
   double get sensitivity => _joystickService.sensitivity;
   ConnectionType get connectionType => _connectionService.connectionType;
   ConnectionStatus get connectionStatus => _connectionService.connectionStatus;
   String get errorMessage => _connectionService.errorMessage;
+  String get targetAddress => _connectionService.targetAddress;
   
   ControlData? _lastControlData;
   ControlData? get lastControlData => _lastControlData;
